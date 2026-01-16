@@ -1,69 +1,84 @@
-import { useEditor, toRichText } from "tldraw"; // FIX 1: Import toRichText
+import { useEditor, useValue } from "tldraw";
 import { useState } from "react";
 
 export function MakeRealButton() {
   const editor = useEditor();
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleClick = async () => {
-    setLoading(true);
+  const isSomethingSelected = useValue(
+    "isSomethingSelected",
+    () => editor.getSelectedShapes().length > 0,
+    [editor]
+  );
+
+  async function handleMakeReal() {
+    if (!isSomethingSelected) return;
+    setIsLoading(true);
+
     try {
-      const shapeIds = Array.from(editor.getCurrentPageShapeIds());
-      if (shapeIds.length === 0) {
-        alert("Please draw something first!");
-        return;
-      }
+      console.log("🚀 Starting Generation..."); // Look for this in your browser console!
+      const selectedShapes = editor.getSelectedShapeIds();
+      
+      const selectionBounds = editor.getSelectionPageBounds();
+      if (!selectionBounds) throw new Error("No selection bounds");
 
-      // Get the image
-      const { blob } = await editor.toImage(shapeIds, {
+      const result = await editor.toImage([...selectedShapes], {
         format: "png",
-        scale: 1,
         background: true,
+        padding: 20,
+        scale: 1,
       });
 
-      // Convert to base64
+      if (!result || !result.blob) throw new Error("Failed to generate image");
+
       const reader = new FileReader();
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(result.blob);
+      
       reader.onloadend = async () => {
         const base64data = reader.result;
 
-        // Send to AI
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: base64data }),
         });
 
-        const html = await response.text();
+        const text = await response.text();
+        console.log("✅ AI Responded. Creating shape now...");
 
-        // FIX 2: Use 'geo' shape (Rectangle) instead of 'text'
-        // FIX 3: Use 'richText' property instead of 'text'
+        // !!! CRITICAL PART: This MUST say 'preview' !!!
         editor.createShape({
-          type: "geo",
-          x: 500,
-          y: 0,
-          props: {
-            geo: "rectangle",
-            w: 500,
-            h: 600,
-            richText: toRichText(html), // The Magic Fix 🪄
-          },
+            type: 'preview', 
+            x: selectionBounds.maxX + 60, 
+            y: selectionBounds.minY,      
+            props: { 
+                html: text,           
+                w: 480,
+                h: 600
+            }
         });
+
+        setIsLoading(false);
       };
-    } catch (e) {
-      console.error(e);
-      alert("Something went wrong!");
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Something went wrong! Check console for details.");
+      setIsLoading(false);
     }
-  };
+  }
 
   return (
     <button
-      onClick={handleClick}
-      className="absolute top-2 right-2 z-[99999] bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 disabled:opacity-50 pointer-events-auto"
+      // I changed the color to PURPLE (bg-purple-600) so you can see if the file updated!
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-[1000] px-6 py-2 rounded-full font-bold transition-all ${
+        isSomethingSelected && !isLoading
+          ? "bg-purple-600 text-white shadow-lg hover:bg-purple-700 cursor-pointer"
+          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+      }`}
+      onClick={handleMakeReal}
+      disabled={!isSomethingSelected || isLoading}
     >
-      {loading ? "Generating..." : "Make Real ✨"}
+      {isLoading ? "Generating... ⏳" : "Make Real 🔮"}
     </button>
   );
 }

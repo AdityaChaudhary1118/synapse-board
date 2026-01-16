@@ -19,11 +19,13 @@ export function useYjsStore({
   shapeUtils?: TLAnyShapeUtilConstructor[];
 }) {
   const room = useRoom();
+  
+  // ✅ FIX 1: We correctly register the custom shapes here
+  // This is the most important part. It teaches the store about "preview" shapes.
   const [store] = useState(() => {
-    const store = createTLStore({
+    return createTLStore({
       shapeUtils: [...defaultShapeUtils, ...shapeUtils],
     });
-    return store;
   });
 
   const [storeWithStatus, setStoreWithStatus] = useState<TLStoreWithStatus>({
@@ -37,22 +39,22 @@ export function useYjsStore({
     const yStore = yDoc.getMap<TLRecord>(`tl_${roomId}`);
     const provider = new LiveblocksYjsProvider(room, yDoc);
 
-    // ---------------------------------------------------------
-    // 1. INITIAL LOAD: Get existing shapes from the Cloud
-    // ---------------------------------------------------------
+    // 1. INITIAL LOAD
     transact(() => {
       const updates: TLRecord[] = [];
       yStore.forEach((record) => {
         updates.push(record);
       });
       if (updates.length > 0) {
-        store.put(updates);
+        // ✅ FIX 2: We removed "remote". 
+        // We now wrap it in mergeRemoteChanges, which handles the "trust" logic for us.
+        store.mergeRemoteChanges(() => {
+           store.put(updates);
+        });
       }
     });
 
-    // ---------------------------------------------------------
-    // 2. DOWNLOAD: Listen for changes from other users
-    // ---------------------------------------------------------
+    // 2. LISTEN FOR CHANGES
     const handleChange = (events: Y.YEvent<any>[]) => {
       transact(() => {
         const toRemove: string[] = [];
@@ -69,6 +71,7 @@ export function useYjsStore({
           });
         });
 
+        // ✅ FIX 3: Removed "remote" here too.
         store.mergeRemoteChanges(() => {
           if (toRemove.length) store.remove(toRemove as any);
           if (toPut.length) store.put(toPut);
@@ -78,9 +81,7 @@ export function useYjsStore({
 
     yStore.observeDeep(handleChange);
 
-    // ---------------------------------------------------------
-    // 3. UPLOAD: Send my changes to the Cloud
-    // ---------------------------------------------------------
+    // 3. UPLOAD CHANGES
     const cleanupListen = store.listen(
       ({ changes }) => {
         yDoc.transact(() => {
@@ -95,12 +96,10 @@ export function useYjsStore({
           });
         });
       },
-      { source: "user", scope: "document" } // Only sync USER changes (not remote ones)
+      { source: "user", scope: "document" }
     );
 
-    // ---------------------------------------------------------
-    // 4. READY: Tell the app we are connected
-    // ---------------------------------------------------------
+    // 4. SYNC READY
     const handleSync = () => {
       setStoreWithStatus({
         status: "synced-remote",
