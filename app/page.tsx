@@ -3,12 +3,15 @@
 import dynamic from "next/dynamic";
 import "tldraw/tldraw.css";
 
-// Lazy load Tldraw to avoid server-side crashes
+// 1. Force this page to skip Static Generation (Fixes "Call retries exceeded")
+export const fetchCache = "force-no-store";
+
+// 2. Load Tldraw only in the browser
 const Tldraw = dynamic(async () => (await import("tldraw")).Tldraw, {
   ssr: false,
   loading: () => (
     <div className="flex h-screen w-screen items-center justify-center font-bold text-xl">
-      Initializing Renderer... ⚙️
+      Loading Whiteboard... 🎨
     </div>
   ),
 });
