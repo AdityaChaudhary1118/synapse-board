@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // Prevents the "Flash and Crash"
-  
-  // ⚠️ FORCE PASS: Ignore Type/Lint errors during build
+  reactStrictMode: false, // Prevents double-load
+  swcMinify: false,       // ⚠️ THE FIX: Prevents code squashing that breaks Tldraw
+
+  // Keep these to ignore the red squiggles during build
   typescript: {
     ignoreBuildErrors: true,
   },
