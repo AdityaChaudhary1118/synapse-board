@@ -1,52 +1,19 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { Tldraw } from "tldraw";
 import "tldraw/tldraw.css";
-import { PreviewShapeUtil } from '@/components/PreviewShape'; 
-import { RoomProvider } from "./liveblocks.config";
-import { ClientSideSuspense } from "@liveblocks/react";
-import { useYjsStore } from "./useYjsStore";
-
-const customShapeUtils = [PreviewShapeUtil];
-
-const Board = dynamic(
-  async () => {
-    const { Tldraw } = await import("tldraw");
-    const { MakeRealButton } = await import("../components/MakeRealButton");
-
-    return function MultiplayerBoard() {
-      const store = useYjsStore({ 
-        roomId: "synapse-room-production",
-        shapeUtils: customShapeUtils 
-      });
-
-      return (
-        <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden' }}>
-          <Tldraw
-            store={store}
-            shapeUtils={customShapeUtils} 
-          >
-            <MakeRealButton />
-          </Tldraw>
-        </div>
-      );
-    };
-  },
-  { ssr: false }
-);
+import { MakeRealButton } from "@/components/MakeRealButton"; // or "../components/..."
 
 export default function Home() {
   return (
-    <RoomProvider id="synapse-room-production" initialPresence={{}}>
-      <ClientSideSuspense
-        fallback={
-          <div className="h-screen w-screen flex items-center justify-center text-xl font-bold animate-pulse">
-            Loading Synapse Board... 🚀
-          </div>
-        }
-      >
-        {() => <Board />}
-      </ClientSideSuspense>
-    </RoomProvider>
+    <div className="w-screen h-screen relative">
+       {/* OFFLINE MODE TEST 
+          We removed RoomProvider and useYjsStore.
+          We are just testing if Tldraw works on Vercel.
+       */}
+      <Tldraw>
+        <MakeRealButton />
+      </Tldraw>
+    </div>
   );
 }
