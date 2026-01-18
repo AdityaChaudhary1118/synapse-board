@@ -9,15 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@liveblocks/client": "^1.9.0",
+    "@liveblocks/react": "^1.9.0",
+    "@liveblocks/yjs": "^1.9.0",
     "next": "14.2.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "tldraw": "2.1.0",
-    "@liveblocks/client": "^1.9.0",
-    "@liveblocks/react": "^1.9.0",
-    "@liveblocks/yjs": "^1.9.0",
-    "yjs": "^13.6.0",
-    "@google/generative-ai": "^0.1.0"
+    "yjs": "^13.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
