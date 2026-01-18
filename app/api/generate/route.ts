@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
 
-// NOTICE: No "import { GoogleGenerativeAI }" here. 
-// If you see that import, DELETE IT.
+export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "API Key missing. Check Vercel Env Vars." }, { status: 500 });
+      return NextResponse.json({ error: "API Key missing" }, { status: 500 });
     }
 
     const body = await req.json();
     const { image } = body;
     if (!image) {
-      return NextResponse.json({ error: "No image data received" }, { status: 400 });
+      return NextResponse.json({ error: "No image data" }, { status: 400 });
     }
 
     const payload = {
@@ -24,12 +23,15 @@ export async function POST(req: Request) {
             { text: `SVG Code: ${image}` }
           ]
         }
-      ]
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 4096,
+      }
     };
 
-    // We use 'gemini-pro' here as it is the most stable model
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
