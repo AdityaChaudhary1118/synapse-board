@@ -1,59 +1,71 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-// 1. Initialize Gemini
-// We check if the key exists to avoid crashing blindly
-const apiKey = process.env.GEMINI_GENERATIVE_AI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export async function POST(req: Request) {
   try {
-    // 2. Security Check
     if (!genAI) {
-      return NextResponse.json(
-        { error: "API Key missing on server. Please add GEMINI_API_KEY to Vercel env vars." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "API Key missing" }, { status: 500 });
     }
 
-    // 3. Get the drawing from the button
     const body = await req.json();
-    const { image } = body; // This is the SVG string
+    const { image } = body;
 
     if (!image) {
-      return NextResponse.json({ error: "No image data received" }, { status: 400 });
+      return NextResponse.json({ error: "No image data" }, { status: 400 });
     }
 
-    // 4. Prepare the AI Model (Gemini 1.5 Flash is fast and good for code)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // 1. Configure Model with Safety Settings (To prevent 400 errors on code)
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+      ],
+    });
 
-    // 5. The Prompt (Instructions for the AI)
+    // 2. The Prompt
     const prompt = `
       You are an expert frontend developer.
-      I am sending you an SVG code representation of a wireframe I drew.
+      I am sending you an SVG code representation of a wireframe.
       
-      Your task:
-      1. Look at the SVG structure to understand the layout, text, and shapes.
-      2. Write a single HTML file containing the structure and Tailwind CSS classes to reproduce this design.
-      3. Make it look modern, clean, and professional.
-      4. Return ONLY the HTML code. Do not wrap it in markdown blocks (no \`\`\`html).
-      
-      Here is the SVG:
+      Task:
+      1. Analyze the SVG structure (rectangles are containers, text is labels).
+      2. Write a single HTML file with Tailwind CSS to recreate this UI.
+      3. Make it look modern and clean.
+      4. Return ONLY the raw HTML code. Do not use markdown backticks.
+
+      SVG Context:
       ${image}
     `;
 
-    // 6. Generate!
+    // 3. Generate
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const code = response.text();
+    const code = response.text().replace(/```html|```/g, ""); // Clean up any markdown
 
-    // 7. Send the code back to the browser
     return NextResponse.json({ code });
 
   } catch (error: any) {
-    console.error("AI Generation Failed:", error);
+    console.error("AI Error Details:", error); // This will show in Vercel Logs
     return NextResponse.json(
-      { error: error.message || "Internal Server Error" },
+      { error: error.message || "AI Generation Failed" },
       { status: 500 }
     );
   }
