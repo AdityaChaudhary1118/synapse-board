@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
     "@liveblocks/client": "^1.9.0",
     "@liveblocks/react": "^1.9.0",
     "@liveblocks/yjs": "^1.9.0",
