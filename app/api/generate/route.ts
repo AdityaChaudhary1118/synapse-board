@@ -1,53 +1,57 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export async function POST(req: Request) {
   try {
-    if (!genAI) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "API Key missing on server" }, { status: 500 });
+    }
 
     const body = await req.json();
     const { image } = body;
+    if (!image) {
+      return NextResponse.json({ error: "No image data received" }, { status: 400 });
+    }
 
-    if (!image) return NextResponse.json({ error: "No image data" }, { status: 400 });
-
-    // 1. Use the Flash model (Fast & Smart)
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: "You are an expert frontend developer. Convert this SVG wireframe into a single HTML file with Tailwind CSS. Make it look modern. Return ONLY raw HTML code (no markdown)." },
+            { text: `SVG Code: ${image}` }
+          ]
+        }
       ],
-    });
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 4096,
+      }
+    };
 
-    // 2. The Prompt
-    const prompt = `
-      You are an expert frontend developer.
-      I am sending you an SVG code representation of a wireframe.
-      
-      Task:
-      1. Analyze the SVG structure.
-      2. Write a single HTML file with Tailwind CSS to recreate this UI.
-      3. Make it look modern, clean, and professional.
-      4. Return ONLY the raw HTML code. Do not use markdown backticks.
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
 
-      SVG Context:
-      ${image}
-    `;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Google API Error:", errorData);
+      return NextResponse.json({ error: `Google Refused: ${response.status} ${response.statusText}` }, { status: response.status });
+    }
 
-    // 3. Generate
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const code = response.text().replace(/```html|```/g, "").trim();
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!rawText) {
+      throw new Error("AI returned an empty response.");
+    }
 
-    return NextResponse.json({ code });
+    const cleanCode = rawText.replace(/```html|```/g, "").trim();
+
+    return NextResponse.json({ code: cleanCode });
 
   } catch (error: any) {
-    console.error("AI Error:", error);
-    return NextResponse.json({ error: error.message || "AI Failed" }, { status: 500 });
-  }
-}
