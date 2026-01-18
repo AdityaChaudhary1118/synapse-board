@@ -1,26 +1,27 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export async function POST(req: Request) {
   try {
-    if (!genAI) return NextResponse.json({ error: "Key missing" }, { status: 500 });
+    // 1. Skip all AI logic. Just prove the server works.
+    console.log("Mock API hit!"); 
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // 2. Return fake HTML immediately
+    const fakeHtml = `
+      <!DOCTYPE html>
+      <html>
+        <body style="background: #f0f9ff; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
+          <div style="text-align: center;">
+            <h1 style="color: #0284c7; font-size: 3rem;">🎉 It Works!</h1>
+            <p style="color: #64748b;">The server connection is perfect.</p>
+            <p>The issue is strictly with the Google AI Library version.</p>
+          </div>
+        </body>
+      </html>
+    `;
 
-    // TEST: Ignore the image, just test the connection
-    const prompt = "Write a simple HTML file that says 'Hello World' in a blue h1 tag.";
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const code = response.text();
-
-    return NextResponse.json({ code });
+    return NextResponse.json({ code: fakeHtml });
 
   } catch (error: any) {
-    console.error("Test Failed:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
