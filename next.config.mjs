@@ -1,9 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  swcMinify: false, // Prevents Tldraw crashes
+  swcMinify: false,
   
-  // Force build to ignore small errors
+  // 🛑 FORCE BUILD TO IGNORE ERRORS 🛑
+  // This tells Vercel: "If you find a type error or a missing module, just ignore it and build anyway."
   typescript: {
     ignoreBuildErrors: true,
   },
