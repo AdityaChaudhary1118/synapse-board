@@ -4,7 +4,7 @@ export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "API Key missing on server" }, { status: 500 });
+      return NextResponse.json({ error: "API Key missing. Check Vercel Env Vars." }, { status: 500 });
     }
 
     const body = await req.json();
@@ -46,12 +46,14 @@ export async function POST(req: Request) {
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!rawText) {
-      throw new Error("AI returned an empty response.");
-    }
+    if (!rawText) throw new Error("AI returned an empty response.");
 
     const cleanCode = rawText.replace(/```html|```/g, "").trim();
 
     return NextResponse.json({ code: cleanCode });
 
   } catch (error: any) {
+    console.error("Server Crash:", error);
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+  }
+}
