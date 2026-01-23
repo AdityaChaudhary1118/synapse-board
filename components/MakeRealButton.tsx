@@ -16,30 +16,30 @@ export function MakeRealButton() {
         return;
       }
 
-      // 1. Get SVG
       const svg = await editor.getSvg(selectedShapes, { scale: 1, background: true });
       if (!svg) throw new Error("Could not generate image.");
       const svgString = new XMLSerializer().serializeToString(svg);
 
-      // 2. Send to Gemini
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: svgString }),
       });
 
-      if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API Error: ${response.status} ${response.statusText}`);
+      }
 
       const data = await response.json();
 
-      // 3. ✨ MAGIC: Open the result in a new tab immediately
       const blob = new Blob([data.code], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
 
     } catch (e: any) {
       console.error(e);
-      window.alert(`Error: ${e.message}`);
+      window.alert(e.message);
     } finally {
       setLoading(false);
     }
