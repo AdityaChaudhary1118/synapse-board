@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic';
-
-export async function GET() {
-  return NextResponse.json({ status: "API is Online. Send a POST request to generate code." });
-}
+export const dynamic = 'force-dynamic'; // Prevent static caching
 
 export async function POST(req: Request) {
   try {
@@ -19,17 +15,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client Error: No drawing sent" }, { status: 400 });
     }
 
+    // 1. AUTO-DETECT MODEL
     const modelsResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
     );
     
     if (!modelsResponse.ok) {
-      throw new Error(`Failed to list models: ${modelsResponse.statusText}`);
+        // Fallback if list fails
+        console.error("Failed to list models, defaulting to gemini-pro");
     }
-
-    const modelsData = await modelsResponse.json();
+    
+    const modelsData = modelsResponse.ok ? await modelsResponse.json() : { models: [] };
     const availableModels = modelsData.models || [];
 
+    // Prioritize flash (fastest), then pro (standard)
     let targetModel = availableModels.find((m: any) => 
       m.name.includes("gemini-1.5-flash") && m.supportedGenerationMethods.includes("generateContent")
     );
@@ -39,17 +38,24 @@ export async function POST(req: Request) {
         m.name.includes("gemini") && m.supportedGenerationMethods.includes("generateContent")
       );
     }
+    
+    // Default to 'gemini-pro' if detection fails but key is valid
+    const modelName = targetModel ? targetModel.name.replace("models/", "") : "gemini-pro";
 
-    if (!targetModel) {
-      throw new Error("Your API Key does not have access to ANY Gemini models. Please create a new Key.");
-    }
-
-    const modelName = targetModel.name.replace("models/", "");
-
+    // 2. HARDENED PROMPT: Explicitly demand Tailwind CDN
     const payload = {
       contents: [{
         parts: [
-          { text: "You are an expert frontend developer. Turn this wireframe drawing into a modern, responsive HTML file using Tailwind CSS. Return ONLY the HTML code. Do not wrap in markdown." },
+          { text: `
+            You are an expert frontend developer. 
+            Turn this wireframe drawing into a modern, responsive HTML file using Tailwind CSS. 
+            
+            CRITICAL RULES:
+            1. You MUST include <script src="https://cdn.tailwindcss.com"></script> in the <head>.
+            2. Use beautiful gradients, shadows, and rounded corners.
+            3. Return ONLY the HTML code. Do not wrap in markdown or backticks.
+            ` 
+          },
           { text: `SVG Context: ${image}` }
         ]
       }]
@@ -74,11 +80,18 @@ export async function POST(req: Request) {
     
     if (!rawText) throw new Error("AI returned an empty response.");
 
-    const cleanCode = rawText.replace(/```html|```/g, "").trim();
+    // 3. CLEAN & INJECT: Ensure Tailwind is present even if AI forgot
+    let cleanCode = rawText.replace(/```html|```/g, "").trim();
+    
+    // Safety Net: If the AI forgot the script, we inject it manually
+    if (!cleanCode.includes("cdn.tailwindcss.com")) {
+        cleanCode = cleanCode.replace("<head>", '<head><script src="https://cdn.tailwindcss.com"></script>');
+    }
 
     return NextResponse.json({ code: cleanCode });
 
   } catch (error: any) {
+    console.error("Route Error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
