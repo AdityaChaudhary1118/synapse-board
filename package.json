@@ -9,14 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@liveblocks/client": "^1.9.0",
-    "@liveblocks/react": "^1.9.0",
-    "@liveblocks/yjs": "^1.9.0",
+    "@liveblocks/client": "^3.13.3",
+    "@liveblocks/react": "^3.13.3",
+    "@liveblocks/yjs": "^3.13.3",
     "next": "14.2.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "tldraw": "2.1.0",
-    "yjs": "^13.6.0"
+    "yjs": "^13.6.29"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
